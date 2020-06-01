@@ -1,7 +1,7 @@
 # University of Michigan College of Engineering News Center Media Library Audit
 (*what a mouthful*)
 
-This program performs a full audit of all *published* items in the Michigan Engineering News Center site's media library. It accomplishes this by leveraging the [WordPress REST AP](https://developer.wordpress.org/rest-api/), especially the Media and Users endpoints. The program produces a CSV file that contains the following information about each item in the site's media library:
+This program performs a full audit of all *published* items in the Michigan Engineering News Center site's media library. It accomplishes this by leveraging the [WordPress REST API](https://developer.wordpress.org/rest-api/), especially the Media and Users endpoints. The program produces a CSV file that contains the following information about each item in the site's media library:
 - Filename (string)
 - Dimensions (string)
 - File size (string)
@@ -11,7 +11,9 @@ This program performs a full audit of all *published* items in the Michigan Engi
 - Uploaded by: (string)
 - ID (integer)
 
-Since the overwhelming majority of the items in the site's media library are images, many of these criteria are concerned with image qualities (i.e. dimensions, alt text, caption, etc.). The program can be run by opening the CoE_Media_Audit executable and clicking the 'Run' button. The program will take several hours to complete and will place a complete CSV file in your Desktop directory when finished. Please do not close the application window nor the terminal window that appears until the program is finished running. When the program encounters media items which are missing necessary data, it will also place the returned data for these items into a json file titled *news_center_faulty_media.json*. 
+Since the overwhelming majority of the items in the site's media library are images, many of these criteria are concerned with image qualities (i.e. dimensions, alt text, caption, etc.).
+
+The program can be run by opening the CoE_Media_Audit_program executable file and clicking the 'Run' button. The program will take several hours to complete and will place a complete CSV file in your Desktop directory when finished. Please do not close the application window nor the terminal window that appears until the program is finished running. When the program encounters media items which are missing necessary data, it will also place the returned data for these items into a json file titled *news_center_faulty_media.json*. 
 
 
 ## Requirements
