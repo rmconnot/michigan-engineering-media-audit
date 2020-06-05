@@ -31,7 +31,7 @@ The program is written in Python and therefore requires Python 3 (or higher) to 
 
 
 ## Planned developments
-- ~~Option for user to provide the URL of a different CoE website and have the program perform a media audit of that website.
+- ~~Option for user to provide the URL of a different CoE website and have the program perform a media audit of that website.~~
 - Improved UI - tkinter UIs are notoriously ugly; however, the program's current tkinter window could benefit from an improved layout as well as aesthetic modifications.
 - Modify the program to simply update a master database of media items, instead of creating a fresh CSV file each time it is run.
 - Currently, 'cancelling' or stopping the program while the main loop is running freezes the window for awhile (can last >5 minutes) before the program actually terminates. This needs to be fixed.
