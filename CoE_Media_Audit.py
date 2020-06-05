@@ -11,16 +11,18 @@ import threading
 import sys
 
 
-CURRENT_DATE = datetime.date.today()
-CSV_FILENAME = os.path.expanduser("~/Desktop") + (f'/CoE_media_audit_{CURRENT_DATE}.csv')
-FAULTY_MEDIA_FILENAME = 'news_center_faulty_media.json'
-window = tk.Tk()
-
 
 #----GLOBAL VARIABLES----#
+CURRENT_DATE = datetime.date.today()
+CSV_FILENAME = os.path.expanduser("~/Desktop") + (f'/CoE_media_audit_{CURRENT_DATE}.csv')
+FAULTY_MEDIA_FILENAME = 'faulty_media.json'
+
+window = tk.Tk()
+
 USER_DATA = {}
 USER_DICT = {}
 MEDIA_DATA = {}
+
 BASE_URL = None
 PROGRESS_BOX = None
 
@@ -516,3 +518,4 @@ def display_gui():
 
 if __name__ == "__main__":
     display_gui()
+

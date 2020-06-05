@@ -12,7 +12,7 @@ This program performs a full audit of all *published* items in a WordPress websi
 
 Since the overwhelming majority of the items in the site's media library are images, many of these criteria are concerned with image qualities (i.e. dimensions, alt text, caption, etc.).
 
-The program can be run by opening the CoE_Media_Audit_program executable file (will need to be unzipped first), entering a valid URL, and clicking the 'Run' button. Depending on the number of items in the given site's media library, the program may take up to several hours to complete and will place a complete CSV file in your Desktop directory when finished. Please do not close the application window nor the terminal window that appears until the program is finished running. When the program encounters media items which are missing necessary data, it will also place the returned data for these items into a json file titled *news_center_faulty_media.json*. 
+The program can be run by opening the CoE_Media_Audit_program executable file (will need to be unzipped first), entering a valid URL, and clicking the 'Run' button. Depending on the number of items in the given site's media library, the program may take up to several hours to complete and will place a complete CSV file in your Desktop directory when finished. Please do not close the application window nor the terminal window that appears until the program is finished running. When the program encounters media items which are missing necessary data, it will also place the returned data for these items into a json file titled *faulty_media.json*. 
 
 
 ## Requirements
@@ -28,6 +28,11 @@ The program is written in Python and therefore requires Python 3 (or higher) to 
 - [requests](https://requests.readthedocs.io/en/master/)
 - [csv](https://docs.python.org/3/library/csv.html)
 - [json](https://docs.python.org/3/library/json.html)
+- [os](https://docs.python.org/3/library/os.html)
+- [datetime](https://docs.python.org/3/library/datetime.html)
+- [PIL](https://www.pythonware.com/products/pil/)
+- [threading](https://docs.python.org/3/library/threading.html)
+- [sys](https://docs.python.org/3/library/sys.html)
 
 
 ## Planned developments
