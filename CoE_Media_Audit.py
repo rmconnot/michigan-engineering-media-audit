@@ -12,14 +12,21 @@ import sys
 
 
 CURRENT_DATE = datetime.date.today()
-CSV_FILENAME = os.path.expanduser("~/Desktop") + (f'/CoE_news_center_media_audit_{CURRENT_DATE}.csv')
+CSV_FILENAME = os.path.expanduser("~/Desktop") + (f'/CoE_media_audit_{CURRENT_DATE}.csv')
 FAULTY_MEDIA_FILENAME = 'news_center_faulty_media.json'
 window = tk.Tk()
 
+
+#----GLOBAL VARIABLES----#
 USER_DATA = {}
 USER_DICT = {}
 MEDIA_DATA = {}
+BASE_URL = None
+PROGRESS_BOX = None
 
+
+
+#----DATA RETRIEVAL FUNCTIONS----#
 
 def make_media_request():
     ''' Makes a series of GET requests to the Wordpress site's API and builds a list of the returned data.
@@ -34,13 +41,15 @@ def make_media_request():
     media_data_list : list
         A compiled list of all the returned data from the API requests.
     '''
-
+    
+    PROGRESS_BOX.insert(tk.END, 'Retrieving media data...\n')
     media_data_list = []
     i = 1
     user_agent = {'User-agent': 'Mozilla/5.0'}
-    
+    global BASE_URL
+
     while i > 0:
-        url = f"https://news.engin.umich.edu/wp-json/wp/v2/media?page={i}"
+        url = f"{BASE_URL}/wp-json/wp/v2/media?page={i}"
         response = requests.get(url, headers = user_agent)
         media_data = response.json()
         
@@ -68,12 +77,14 @@ def make_user_request():
         A dictionary containing the returned data from the API requests.
     '''
 
+    PROGRESS_BOX.insert(tk.END, 'Retrieving users...\n')
     user_data_dict = {'michigan_engineering_news_center_users' : []}
     i = 1
     user_agent = {'User-agent': 'Mozilla/5.0'}
+    global BASE_URL
     
     while i > 0:
-        url = f"https://news.engin.umich.edu/wp-json/wp/v2/users?page={i}"
+        url = f"{BASE_URL}/wp-json/wp/v2/users?page={i}"
         response = requests.get(url, headers = user_agent)
         user_data_raw = response.json()
 
@@ -94,6 +105,9 @@ def make_user_request():
     return(user_data_dict)
 
 
+
+#----DATA FORMATTING FUNCTIONS----#
+
 def create_user_dict(user_data_dict):
     ''' Creates a dictionary from the provided user data (json) with the user's id as a key
     and the user's name as a value.
@@ -108,6 +122,7 @@ def create_user_dict(user_data_dict):
     None
     '''
 
+    PROGRESS_BOX.insert(tk.END, 'Parsing users...\n')
     for user in user_data_dict['michigan_engineering_news_center_users']:
         user_id = user['id']
         name = user['name']
@@ -130,7 +145,9 @@ def get_file_size(media):
         formatted string (either KB or MB, depending on size)
     '''
 
-    response = requests.get(media['guid']['rendered'])
+    user_agent = {'User-agent': 'Mozilla/5.0'}
+
+    response = requests.get(media['guid']['rendered'], headers=user_agent)
     image_source = response.content 
     raw_file_size = len(image_source) #GET requests for images return a "bytes" type object, making it possible to use len() to find the file size (i.e. number of bytes)
     
@@ -144,7 +161,7 @@ def get_file_size(media):
 
 def process_data(data):
     ''' Processes the data returned from make_media_request() by assiging values
-    to the variables necessary for the audit (file_name, dimensions, file_size, alt_text, caption, duplicate).
+    to the variables necessary for the audit (file_name, dimensions, file_size, alt_text, caption, duplicate, uploader, id).
 
     Parameters
     ----------
@@ -157,14 +174,16 @@ def process_data(data):
         list containing all of the media objects' relevant info for the audit
     '''
 
+    PROGRESS_BOX.insert(tk.END, 'Parsing media data...\n')
     media_list = []
     for media_group in data:
         for media in media_group:
             
             #file name
             try:
-                file_name = media['guid']['rendered'][59:] #The returned object is the media url (example:https://cm-web-news-files.s3.amazonaws.com/uploads/2019/12/kovach-FEATURED.png). The filename
-            except:                                        #begins at index 59. It's an inelegant solution but it was the only reliable method I could come up with to retrieve the filename.
+                raw_guid = media['guid']['rendered']
+                file_name = raw_guid[raw_guid.rfind('/'):][1:] #The returned object is the media url (example:https://cm-web-news-files.s3.amazonaws.com/uploads/2019/12/kovach-FEATURED.png). str.rfind()
+            except:                                            #returns the index of the last occurence of the substring '/'. It's an inelegant solution but it was the only reliable method I could come up with to retrieve the filename.
                 file_name = 'No filename provided'
                 save_cache(media, FAULTY_MEDIA_FILENAME)
 
@@ -237,6 +256,7 @@ def write_csv_file(media_list):
     None
     '''
 
+    PROGRESS_BOX.insert(tk.END, 'Writing data to CSV file...\n')
     with open(CSV_FILENAME, 'w', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
         header_row = ['Filename', 'Dimensions', 'File size', 'Alt Text', 'Caption', 'Duplicate?', 'Uploaded by', 'ID']
@@ -247,6 +267,9 @@ def write_csv_file(media_list):
             media_row = [item[0], item[1], item[2], item[3], item[4], item[5], item[6], item[7]]
             csv_writer.writerow(media_row)
 
+
+
+#----CACHING FUNCTIONS----#
 
 def save_cache(cache_dict, cache_filename):
     ''' Saves the current state of the cache to disk
@@ -268,9 +291,7 @@ def save_cache(cache_dict, cache_filename):
 
 
 def open_cache(filename):
-    ''' Opens the cache file if it exists and loads the JSON into
-    the CACHE_DICT dictionary.
-    if the cache file doesn't exist, creates a new cache dictionary
+    ''' Opens the cache file if it exists and loads the JSON data
     
     Parameters
     ----------
@@ -278,7 +299,8 @@ def open_cache(filename):
     
     Returns
     -------
-    The opened cache: dict
+    cache_dict : dict
+        the opened cache
     '''
 
     try:
@@ -292,13 +314,16 @@ def open_cache(filename):
     return cache_dict
 
 
+
+#----MISC FUNCTIONS----#
+
 def resource_path(relative_path):
-    ''' Creates an absolute path for objects based on the folder the user's directories.
+    ''' Creates an absolute path for objects based on the user's directories.
 
     Parameters
     ----------
     relative path: str
-    essentially just the item's filename
+        essentially just the item's filename
 
     Returns
     -------
@@ -313,6 +338,64 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+
+#----USER INPUT VALIDATION FUNCTIONS----#
+
+def validate_url(url):
+    '''Uses the requests module to verify that the url entered by the user is valid.
+    If the url is invalid, inserts an error message into the GUU
+
+    Parameters
+    ----------
+    url : str
+        the url entered by the user
+
+    Returns
+    -------
+    True/False : Boolean
+    '''
+
+    global PROGRESS_BOX
+    user_agent = {'User-agent': 'Mozilla/5.0'}
+    
+    try:
+        requests.get(url, headers = user_agent)
+        return True
+    except:
+        PROGRESS_BOX.insert(tk.END, 'ERROR - INVALID URL\n')
+        return False
+
+
+def process_url(url):
+    '''Uses the validate_url() helper function to verify that the url exists.
+    If it does, then the url string is formatted to make sure it can function properly
+    as a base url for the API call
+
+    Parameters
+    ----------
+    url : str
+        the url entered by the user
+
+    Returns
+    -------
+    formatted_url : str
+        the cleaned up string that will function as the base url for the API call
+    '''
+
+    if validate_url(url) is True:
+        if url[-1] == '/':
+            formatted_url = url[:-1]
+        else:
+            formatted_url = url
+    else:
+        formatted_url = None
+
+    return formatted_url
+
+
+
+#----GUI FUNCTIONS----#
+
 def display_gui():
     ''' Creates the tkinter window and populates it with labels, buttons, and a text box.
 
@@ -326,10 +409,10 @@ def display_gui():
     '''
     
     #window title
-    window.title("News Center Media Audit")
+    window.title("Michigan Engineering Media Audit")
 
     #window size
-    window.geometry("575x500")
+    window.geometry("575x575")
 
     #title font setting
     title_font = font.Font(size=30)
@@ -339,19 +422,24 @@ def display_gui():
     photo = ImageTk.PhotoImage(image)
 
     #labels
-    logo = tk.Label(master=window, image=photo, anchor='w', pady=10, padx=10)
+    logo = tk.Label(master=window, image=photo, pady=10, padx=10)
     logo.grid(column=0, row=0)
 
-    title = tk.Label(master=window, text="Michigan Engineering News\nCenter Media Audit", font=title_font, justify='left')
-    title.grid(column=1, row=0)
+    title = tk.Label(master=window, text="Michigan Engineering\nMedia Audit", font=title_font, justify='left')
+    title.grid(column=1, row=0, sticky='w')
 
-    program_description1 = tk.Label(master=window, padx=10, text="This program performs a full audit of the Michigan Engineering News Center's media\nlibrary by retrieving data about each item in the library and formatting that\ndata in a CSV file.\n\n Retrieving the necessary data requires making over 1,000 calls to the website's API.\nTherefore, it is important that you only run this program when others are not likely\nto be using the website (ideally after 6pm EST), as too much traffic can negatively\nimpact the site's performance.\n\nOnce you run the program, it will take several hours to complete the audit.\nPlease do not close this window while the program is running", justify='left')
-    program_description1.grid(columnspan=3, row=1)
+    program_description1 = tk.Label(master=window, padx=10, text="This program performs a full audit of a Michigan Engineering WordPress website's media\nlibrary by retrieving data about each item in the library and formatting that\ndata in a CSV file.\n\nRetrieving the necessary data requires making over 1,000 calls to the website's API.\nTherefore, it is important that you only run this program when others are not likely\nto be using the website (ideally after 6pm EST), as too much traffic can negatively\nimpact the site's performance.\n\nOnce you run the program, it will take several hours to complete the audit.\nPlease do not close this window while the program is running\n\nEnter the website's base url (e.g. https://news.engin.umich.edu)", justify='left')
+    program_description1.grid(columnspan=4, row=1)
+
+    #entries
+    url_entry = tk.Entry(width=45)
+    url_entry.grid(column=0, row=2, padx=10, columnspan=2, sticky='w')
+
 
     #This implementation could be vastly improved. This is just the only way I could get it to work for now (first time implementing threading).
     def handle_click():
-        ''' Handles the user's click by implementing multithreading for the main function - main_func() - in order to enable main_func
-        to update the progress_box Text widget while also preventing the tk window from freezing.
+        ''' Handles the user's click by implementing multithreading for the main function - main_func() - in order to enable main_func()
+        to update the PROGRESS_BOX Text widget while also preventing the tk window from freezing.
 
         Parameters
         ----------
@@ -362,48 +450,66 @@ def display_gui():
         None
         '''
 
+        global BASE_URL
+        BASE_URL = str(url_entry.get())
+
         def main_func():
             ''' The main function of the program. Calls several other functions to retrieve data, format it, and produce a CSV file.
 
             Parameters
             ----------
-            progress_box: tk.Text()
-            A text box that is populated with progress updates for the user
+            None
 
             Returns
             --------
             None
             '''
+            
+            global MEDIA_DATA
+            global BASE_URL
+            global PROGRESS_BOX
 
             #progress text box
-            progress_box = tk.Text(master=window, height=8, width=75)
-            progress_box.grid(columnspan=4, row=2, padx=10)
+            PROGRESS_BOX = tk.Text(master=window, height=10, width=75)
+            PROGRESS_BOX.grid(columnspan=4, row=3, padx=10)
 
-            progress_box.insert(tk.END, 'Running...\n')
+            PROGRESS_BOX.insert(tk.END, 'Running...\n')
 
-            progress_box.insert(tk.END, 'Parsing users...\n')
+            if BASE_URL != None:
+                    PROGRESS_BOX.insert(tk.END, f'Connecting to {BASE_URL}\n')
+                    BASE_URL = process_url(BASE_URL)
+                    if  BASE_URL == None: #if process_url is unable to verify that the url is valid, then it will return None
+                        return # empty returns are used to stop function from continuing if an error is encountered
 
-            create_user_dict(make_user_request())
+            try:
+                create_user_dict(make_user_request())
+            except:
+                PROGRESS_BOX.insert(tk.END, 'ERROR - COULD NOT RETRIEVE USERS\n')
+                return
 
-            progress_box.insert(tk.END, 'Retrieving media data...\n')
+            try:
+                MEDIA_DATA = make_media_request()
+            except:
+                PROGRESS_BOX.insert(tk.END, 'ERROR - COULD NOT RETRIEVE MEDIA DATA\n')
+                return
 
-            MEDIA_DATA = make_media_request()
+            try:
+                write_csv_file(process_data(MEDIA_DATA))
+            except:
+                PROGRESS_BOX.insert(tk.END, 'ERROR - COULD NOT PARSE MEDIA DATA.\n')
+                return
 
-            progress_box.insert(tk.END, 'Parsing media data...\n')
-
-            write_csv_file(process_data(MEDIA_DATA))
-
-            progress_box.insert(tk.END, f'Finished! You can find the complete CSV file at {CSV_FILENAME}')
+            PROGRESS_BOX.insert(tk.END, f'Finished! You can find the complete CSV file at {CSV_FILENAME}')
         
-        t = threading.Thread(target=main_func)
+        t = threading.Thread(target= main_func)
         t.start()
 
     #buttons
-    run_button = tk.Button(master=window, text="Run", pady=15, width=15, command=handle_click)
-    run_button.grid(column=0, columnspan=1, row=3, padx=10, pady=10)
+    run_button = tk.Button(master=window, text="Run", pady=15, width=15, command= handle_click)
+    run_button.grid(column=0, columnspan=1, row=4, padx=10, pady=10, sticky='w')
 
     cancel_button = tk.Button(master=window, text="Cancel", command=sys.exit, pady=15, width=15)
-    cancel_button.grid(column=1, row=3, pady=10)
+    cancel_button.grid(column=1, row=4, pady=10, sticky='w')
 
     window.mainloop()
 
